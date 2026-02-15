@@ -6,6 +6,7 @@ i vibecoded this with grok and copilot in about 3 hours (got it working on my la
 
 ### only works with ellipses and rotated ellipses(recommended)
 https://www.samcodes.co.uk/project/geometrize-haxe-web/
+
 `1.2k max shapes seems to be right under the limit`
 <br>
 

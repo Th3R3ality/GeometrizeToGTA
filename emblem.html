@@ -1,0 +1,738 @@
+<!-- F28443F2EBA025B60FF8B018A21065DD0B72CA8BB1BE7BFC1167CEE286610A34A614C24EB721B4B0574B317DEF2CD3CB3D0810A4AE3A7C4491D319E578126321
+    |
+    |   Emblem Helper 1.1 (Modified for Geometrize SVG to Emblem)
+    |
+    |   Original by Flashback-GTA
+    |   https://www.youtube.com/watch?v=bGI88KDaKmY
+    |
+    |   Modified to convert SVG ellipses from Geometrize to GTAO emblems using circle slug.
+    |
+-->
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Emblem Helper (Geometrize Edition)</title><meta name="author" content="Flashback-GTA (Modified)">
+    <!-- HELPER FUNCTIONS START -->
+    <script>
+        //  Kuzey Beytar @ https://stackoverflow.com/questions/22868475/how-can-i-trim-the-length-of-a-filename-in-javascript-but-keep-the-extension
+        function fileTrunc(fileName) {
+            if (fileName.length > 20)
+                return fileName.substr(0, 10) + '[..]' + fileName.substr(-10);
+            return fileName;
+        }
+ 
+        //  Elias Zamaria @ https://stackoverflow.com/questions/2901102/how-to-print-a-number-with-commas-as-thousands-separators-in-javascript
+        function numberWithCommas(x) {
+            return x.toString().replace(/\B(?<!\.\d*)(?=(\d{3})+(?!\d))/g, ',');
+        }
+        
+        //  Round float values to the given decimal place.
+        function floatRound(value, decimals = 5) {
+            var _n = parseFloat(value).toFixed(decimals);
+            return Number(_n);
+        }
+ 
+        //  Tim Down @ https://stackoverflow.com/questions/5623838/rgb-to-hex-and-hex-to-rgb
+        function componentToHex(c) {
+            var _hex = c.toString(16);
+            return _hex.length == 1 ? '0' + _hex : _hex;
+        }
+        function rgbToHex(r, g, b) {
+            return '#' + componentToHex(r) + componentToHex(g) + componentToHex(b);
+        }
+ 
+        //  discuss at: https://locutus.io/php/base_convert/
+        //  original by: Philippe Baumann
+        //  improved by: Rafał Kukawski[](https://blog.kukawski.pl)
+        //  example 1: base_convert('A37334', 16, 2)
+        //  returns 1: '101000110111001100110100'
+        function base_convert (number, frombase, tobase) {
+            return parseInt(number + '', frombase | 0).toString(tobase | 0)
+        }
+ 
+        //  Adapted from: https://stackoverflow.com/questions/25607844/css-hex-to-shorthand-hex-conversion
+        function hexToShort(hex) {
+            if (hex[0] == '#')
+                hex = hex.substr(1, 6);
+            
+            if (hex.length == 3)
+                return hex;
+            
+            if (hex.length != 6)
+                return '#FFF';
+            
+            var _final = '';
+            
+            var _segments = [];
+            _segments[0] = hex.substr(0, 2);
+            _segments[1] = hex.substr(2, 2);
+            _segments[2] = hex.substr(4, 2);
+            
+            for (const s of _segments)
+            {
+                _dec = base_convert(s, 16, 10);
+                _remainder = _dec % 17;
+                _newa = (_dec % 17 > 7) ? 17 + (_dec - _remainder) : _dec - _remainder;
+                hex = base_convert(_newa, 10, 16);
+                _final += hex[0];
+            }
+            return '#' + _final;
+        }
+ 
+        //  Array comparison.
+        function arraysEqual(a, b) {
+            return JSON.stringify(a) == JSON.stringify(b);
+        }
+        
+        //  https://www.w3schools.com/howto/howto_js_copy_clipboard.asp
+        function copyToClipboard(textArea, alert = false) {
+            var _copyText = document.getElementById(textArea);
+            var _textLength = _copyText.value.length;
+            _copyText.select();
+            _copyText.setSelectionRange(0, _textLength);
+            navigator.clipboard.writeText(_copyText.value);
+            if (alert)
+                alert('Copied!');
+        }
+        
+        /*  Jason J. Nathan @ https://stackoverflow.com/questions/3971841/how-to-resize-images-proportionally-keeping-the-aspect-ratio
+         *  Conserve aspect ratio of the original region. Useful when shrinking/enlarging
+         *  images to fit into a certain area.
+         *  @param {Number} srcWidth width of source image
+         *  @param {Number} srcHeight height of source image
+         *  @param {Number} maxWidth maximum available width
+         *  @param {Number} maxHeight maximum available height
+         *  @return {Object} { width, height }
+         */
+        //  Added offsets for square image centering.
+        function calculateAspectRatioFit(srcWidth, srcHeight, maxWidth, maxHeight) {
+            var ratio = Math.min(maxWidth / srcWidth, maxHeight / srcHeight);
+            return { width: srcWidth*ratio, height: srcHeight*ratio,
+                offsetX: (maxWidth - srcWidth*ratio) / 2, offsetY: (maxHeight - srcHeight*ratio) / 2};
+        }
+        
+        //  CSS helper functions.
+        function setClass(element, cssClass) {
+            document.getElementById(element).className = cssClass;
+        }
+        function enableElement(element) {
+            document.getElementById(element).disabled = false;
+        }
+        function disableElement(element) {
+            document.getElementById(element).disabled = true;
+        }
+        
+    </script>
+    <!-- HELPER FUNCTIONS END -->
+    <!-- SVG OBJECT CLASS START -->
+    <script>
+        //  Adapted from: Gumape & Tobias Tengler @ https://stackoverflow.com/questions/3492322/javascript-createelementns-and-svg
+        class svgObject
+        {
+            xmlns;
+            canvasWidth;
+            canvasHeight;
+            svgElement;
+            svgDefs;
+            paths;
+            shapePath;
+ 
+            //  Create the SVG element with the standard attributes.
+            constructor(shapePath, canvasWidth = 512, canvasHeight = 512)
+            {
+                this.xmlns = 'http://www.w3.org/2000/svg';
+                this.canvasWidth = canvasWidth;
+                this.canvasHeight = canvasHeight;
+                this.svgElement = document.createElementNS(this.xmlns, 'svg');
+                this.svgElement.setAttribute('xmlns', this.xmlns);
+                this.svgElement.setAttribute('width', canvasHeight);
+                this.svgElement.setAttribute('height', canvasHeight);
+                this.svgElement.setAttribute('version', '1.1');
+                this.svgDefs = document.createElementNS(this.xmlns, 'defs');
+                this.paths = [];
+                this.shapePath = shapePath;
+            }
+            
+            //  Add the standard background rectangle.
+            addBackground()
+            {
+                var _rect = document.createElementNS(this.xmlns, 'rect');
+                _rect.setAttribute('x', 0);
+                _rect.setAttribute('y', 0);
+                _rect.setAttribute('width', this.canvasWidth);
+                _rect.setAttribute('height', this.canvasHeight);
+                _rect.setAttribute('rx', 0);
+                _rect.setAttribute('ry', 0);
+                _rect.setAttribute('fill', 'none');
+                _rect.setAttribute('stroke', '#a1a1a1');
+                _rect.setAttribute('fill-opacity', 1);
+                _rect.setAttribute('stroke-opacity', 0);
+                _rect.setAttribute('stroke-width', 0);
+                _rect.setAttribute('stroke-miterlimit', 10);
+                this.svgElement.appendChild(_rect);
+            }
+ 
+            //  Add a solid layer with only one colour (no rotation).
+            addSolidPath(x, y, scaleX, scaleY, fill, opacity)
+            {
+                var _path = document.createElementNS(this.xmlns, 'path');
+                _path.setAttribute('fill', fill);
+                var _alpha = floatRound((1 / 255) * opacity, 3);
+                //  The alpha value only needs to be set if it is less than 1.
+                if (_alpha < 1)
+                    _path.setAttribute('fill-opacity', _alpha);
+                _path.setAttribute('d', this.shapePath);
+                _path.setAttribute('transform', 'matrix('+ scaleX +',0,0,'+ scaleY +','+ x +','+ y +')');
+                this.paths.push(_path);
+            }
+
+            //  Add a solid layer with full matrix (for rotation).
+            addSolidPathGeneral(a, b, c, d, e, f, fill, opacity)
+            {
+                var _path = document.createElementNS(this.xmlns, 'path');
+                _path.setAttribute('fill', fill);
+                var _alpha = floatRound((1 / 255) * opacity, 3);
+                //  The alpha value only needs to be set if it is less than 1.
+                if (_alpha < 1)
+                    _path.setAttribute('fill-opacity', _alpha);
+                _path.setAttribute('d', this.shapePath);
+                _path.setAttribute('transform', 'matrix('+ a +','+ b +','+ c +','+ d +','+ e +','+ f +')');
+                this.paths.push(_path);
+            }
+            
+            //  Add a gradient layer with the given gradient.
+            addGradientPath(x, y, scaleX, scaleY, fill)
+            {
+                var _path = document.createElementNS(this.xmlns, 'path');
+                _path.setAttribute('fill', fill);
+                _path.setAttribute('d', this.shapePath);
+                _path.setAttribute('transform', 'matrix('+ scaleX +',0,0,'+ scaleY +','+ x +','+ y +')');
+                this.paths.push(_path);
+            }
+            
+            //  Add a new gradient definition to the SVG.
+            addGradient(id, stops, isRows)
+            {
+                var _gradient = document.createElementNS(this.xmlns, 'linearGradient');
+                _gradient.setAttribute('id', id);
+                
+                //  Gradient orientation (horizontal/vertical).
+                if (isRows)
+                {
+                    //  Horizontal gradient is the default so these attributes can be omitted.
+                    //_gradient.setAttribute('x2', 1);
+                    //_gradient.setAttribute('y2', 0);
+                }
+                else
+                {
+                    _gradient.setAttribute('x2', 0);
+                    _gradient.setAttribute('y2', 1);
+                }
+                
+                //  Add the stops to the gradient.
+                for (const _stop of stops)
+                {
+                    var _s = document.createElementNS(this.xmlns, 'stop');
+                    
+                    _s.setAttribute('offset', _stop[0]);
+                    _s.setAttribute('stop-color', _stop[1]);
+ 
+                    var _alpha = floatRound((1 / 255) * _stop[2], 3);
+                    
+                    //  The alpha value only needs to be set if it is less than 1.
+                    if (_alpha < 1)
+                        _s.setAttribute('stop-opacity', _alpha);
+ 
+                    _gradient.appendChild(_s);
+                }
+                
+                this.svgDefs.appendChild(_gradient);
+            }
+            
+            //  Construct the final SVG.
+            finalise()
+            {
+                this.svgElement.appendChild(this.svgDefs);      //: Gradient definitions.
+                this.addBackground();                           //: Default background.
+                for (const _path of this.paths)                 //: Paths for each slice/layer.
+                {
+                    this.svgElement.appendChild(_path);
+                }
+            }
+ 
+            // Return the full SVG element.
+            getSVG()
+            {
+                return this.svgElement;
+            }
+        }
+    </script>
+    <!-- SVG OBJECT CLASS END -->
+    <!-- EMBLEM HELPER CLASS START -->
+    <script>        
+        //  The main Emblem Helper object class.
+        class emblemHelper
+        {
+            svg;                        //: The SVG object that will be created from the source image.
+            layers;                     //: The layers that will be uploaded to the editor.
+            indexCount;                 //: Index for layer count.
+ 
+            slug = 'rounds/01';     //: Circle slug.
+            slugName = '01';            //: The name of the slug in the editor.
+            slugWidth = 300;          //: The width of the slug in the editor.
+            slugHeight = 300;           //: The height of the slug in the editor.
+            slugPath = 'M300,149.988C300,232.83100000000002,232.83499999999998,299.985,149.997,299.985C67.154,299.985,0,232.831,0,149.988C0,67.15,67.154,0,149.997,0C232.835,0,300,67.15,300,149.988Z';      //: The slug path from the editor.
+            slugCenterX = 150;
+            slugCenterY = 150;
+
+            decimalPrecision;           //: The number of decimal places to round floats to.
+ 
+            emblemWidth = 512;          //: Standard emblem width.
+            emblemHeight = 512;         //: Standard emblem height.
+ 
+            layerLength;                //: The size of the JSON layer data.
+            svgLength;                  //: The size of the SVG element.
+            encodedLength;              //: The total size when encoded.
+            maxEncodedLength;           //: The maximum request size that will be accepted by the server.
+ 
+            constructor()
+            {
+                this.reset();
+                this.decimalPrecision = 5;
+                this.maxEncodedLength = 128 * 10000;
+            }
+ 
+            reset()
+            {
+                this.svg = new svgObject(this.slugPath);        //: Create a new SVG.
+                this.indexCount = 0;                            //: Reset the index count for the layers.
+                this.layers = [];                               //: Create the array to store the layers.
+                //  Add the default background layer (with transparent fix).
+                this.layers.push({"id":"background","name":"Background","type":"square","y":0,"x":0,"scaleY":100,"scaleX":100,"invertedY":false,"invertedX":false,"rotation":0,"opacity":100,"index":0,"color":"#transparent","isFilled":true,"internal":true,"locked":false,"tBold":false,"tItalic":false,"fontFamily":null,"borderColor":"#a1a1a1","borderSize":0,"gradientStyle":"Fill","slug":"rectangles/square","width":512,"height":512});
+            }
+ 
+            //  Set the number of decimals to round SVG elements to.
+            setAccuracy(i)
+            {
+                this.decimalPrecision = parseInt(i);
+            }
+ 
+            //  Create a unique path ID.
+            createPathID(i)
+            {
+                //  Note: Can this be shorter?
+                var _dateTime = new Date().getTime();
+                var _id = _dateTime + '' + i;
+                return "s" + _id;
+            }
+            
+            //  Create a new layer.
+            createNewLayer(x, y, scaleX, scaleY, rotation, opacity, color, index)
+            {
+                var _y = floatRound(y, this.decimalPrecision);
+                var _x = floatRound(x, this.decimalPrecision);
+ 
+                //  Minimum layer scale in the crew emblem editor appears to be 1.
+                if (scaleX < 1)
+                    scaleX = 1;
+                if (scaleY < 1)
+                    scaleY = 1;
+ 
+                var _id = this.createPathID(index);
+ 
+                let _layer = {
+                    id: _id,
+                    name: this.slugName,
+                    type: 'path',
+                    y: _y,
+                    x: _x,
+                    scaleY: scaleY,
+                    scaleX: scaleX,
+                    invertedY: 0,   //: false   (save some bytes)
+                    invertedX: 0,   //: false
+                    rotation: rotation,
+                    opacity: opacity,
+                    index: index,
+                    color: color,
+                    isFilled: 1,    //: true
+                    internal: 0,    //: false
+                    locked: 0,      //: false
+                    tBold: 0,       //: false
+                    tItalic: 0,     //: false
+                    fontFamily: null,
+                    borderColor: '#0',  //: #0 is accepted as a colour but is the same as 'none'.
+                    borderSize: 0,
+                    gradientStyle: 'Fill',
+                    slug: this.slug,
+                    width: this.slugWidth,
+                    height: this.slugHeight
+                };
+                
+                return _layer;
+            }
+            
+            //  Process the Geometrize SVG and create the emblem.
+            createEmblemFromGeometrizeSVG(svgString)
+            {
+                this.reset();
+
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(svgString, "image/svg+xml");
+                const svgEl = doc.documentElement;
+                let viewBox = svgEl.getAttribute('viewBox');
+                let vb;
+                if (viewBox) {
+                    vb = viewBox.split(/\s+/).map(Number);
+                } else {
+                    vb = [0, 0, parseFloat(svgEl.getAttribute('width') || 512), parseFloat(svgEl.getAttribute('height') || 512)];
+                }
+
+                const scale_factor_x = this.emblemWidth / vb[2];
+                const scale_factor_y = this.emblemHeight / vb[3];
+
+                // Handle background rect if present - convert to giant covering ellipse
+                const rect = doc.querySelector('rect');
+                if (rect) {
+                    let bg_fill = rect.getAttribute('fill') || '#transparent';
+                    if (bg_fill.startsWith('rgb(')) {
+                        let [r, g, b] = bg_fill.match(/\d+/g).map(Number);
+                        bg_fill = rgbToHex(r, g, b);
+                    }
+                    let bg_alpha = (parseFloat(rect.getAttribute('opacity')) || 1) * (parseFloat(rect.getAttribute('fill-opacity')) || 1);
+                    
+                    // Create a giant ellipse that covers the entire emblem as background
+                    let bg_cx = this.emblemWidth / 2;
+                    let bg_cy = this.emblemHeight / 2;
+                    let bg_rx = (this.emblemWidth / 2) * 3;
+                    let bg_ry = (this.emblemHeight / 2) * 3;
+                    
+                    let sr_x = bg_rx / this.slugCenterX;
+                    let sr_y = bg_ry / this.slugCenterY;
+                    let pos_x = bg_cx - (this.slugCenterX * sr_x);
+                    let pos_y = bg_cy - (this.slugCenterY * sr_y);
+                    
+                    pos_x = floatRound(pos_x, this.decimalPrecision);
+                    pos_y = floatRound(pos_y, this.decimalPrecision);
+                    
+                    let scale_x = floatRound(sr_x * 100, this.decimalPrecision);
+                    let scale_y = floatRound(sr_y * 100, this.decimalPrecision);
+                    
+                    let layer_opacity = Math.round(bg_alpha * 100);
+                    
+                    this.layers.push(this.createNewLayer(pos_x, pos_y, scale_x, scale_y, 0, layer_opacity, bg_fill, 1));
+                    
+                    // For SVG
+                    let path_opacity = bg_alpha * 255;
+                    this.svg.addSolidPath(pos_x, pos_y, sr_x, sr_y, bg_fill, path_opacity);
+                }
+
+                const ellipses = doc.querySelectorAll('ellipse');
+                this.indexCount = rect ? 2 : 1; // Start after background rect if one exists
+
+                for (let i = 0; i < ellipses.length; i++) {
+                    const el = ellipses[i];
+                    let cx = (parseFloat(el.getAttribute('cx')) || 0) * scale_factor_x;
+                    let cy = (parseFloat(el.getAttribute('cy')) || 0) * scale_factor_y;
+                    let rx = (parseFloat(el.getAttribute('rx')) || 0) * scale_factor_x;
+                    let ry = (parseFloat(el.getAttribute('ry')) || 0) * scale_factor_y;
+                    let fill = el.getAttribute('fill') || '#000000';
+                    if (fill.startsWith('rgb(')) {
+                        let [r, g, b] = fill.match(/\d+/g).map(Number);
+                        fill = rgbToHex(r, g, b);
+                    }
+                    let alpha = (parseFloat(el.getAttribute('opacity')) || 1) * (parseFloat(el.getAttribute('fill-opacity')) || 1);
+                    let rotation = 0;
+                    let transform = el.getAttribute('transform');
+                    if (transform) {
+                        const match = transform.match(/rotate\((-?[\d.]+)\s+([\d.]+)\s+([\d.]+)\)/);
+                        if (match) {
+                            rotation = parseFloat(match[1]);
+                        }
+                    }
+
+                    let sr_x = rx / this.slugCenterX;
+                    let sr_y = ry / this.slugCenterY;
+                    let pos_x = cx - (this.slugCenterX * sr_x);
+                    let pos_y = cy - (this.slugCenterY * sr_y);
+
+                    pos_x = floatRound(pos_x, this.decimalPrecision);
+                    pos_y = floatRound(pos_y, this.decimalPrecision);
+
+                    let scale_x = floatRound(sr_x * 100, this.decimalPrecision);
+                    let scale_y = floatRound(sr_y * 100, this.decimalPrecision);
+
+                    let layer_opacity = Math.round(alpha * 100);
+
+                    this.layers.push(this.createNewLayer(pos_x, pos_y, scale_x, scale_y, rotation, layer_opacity, fill, this.indexCount));
+
+                    // For SVG
+                    let path_opacity = alpha * 255;
+                    if (rotation === 0) {
+                        this.svg.addSolidPath(pos_x, pos_y, sr_x, sr_y, fill, path_opacity);
+                    } else {
+                        let rad = rotation * Math.PI / 180;
+                        let cos = Math.cos(rad);
+                        let sin = Math.sin(rad);
+                        let a = sr_x * cos;
+                        let b = sr_x * sin;
+                        let c = -sr_y * sin;
+                        let d = sr_y * cos;
+                        let e = cx - a * this.slugCenterX - c * this.slugCenterY;
+                        let f = cy - b * this.slugCenterX - d * this.slugCenterY;
+
+                        a = floatRound(a, this.decimalPrecision);
+                        b = floatRound(b, this.decimalPrecision);
+                        c = floatRound(c, this.decimalPrecision);
+                        d = floatRound(d, this.decimalPrecision);
+                        e = floatRound(e, this.decimalPrecision);
+                        f = floatRound(f, this.decimalPrecision);
+
+                        this.svg.addSolidPathGeneral(a, b, c, d, e, f, fill, path_opacity);
+                    }
+
+                    this.indexCount++;
+                }
+
+                this.svg.finalise();
+
+                //  Calculate the request size.
+                var _svgElement = this.svg.getSVG().outerHTML;
+                this.svgLength = _svgElement.length;
+                this.layerLength = JSON.stringify(this.layers).length;
+                this.encodedLength = Math.ceil((this.svgLength + this.layerLength) / 3) * 4;    //: There is a bug which sometimes makes this calculation 4 bytes off from the true size.
+            }
+ 
+            //  Create the code to be pasted into the browser console.
+            getConsoleCode()
+            {
+                //  Base64 encode the SVG and layer data.
+                var _svgData = btoa(this.svg.getSVG().outerHTML);
+                var _layerData = btoa(JSON.stringify(this.layers));
+                //  Create the request.
+                var _consoleCode = '// Generated with EmblemHelper v1.1 (Geometrize Edition) \n\n';
+                _consoleCode += 'var svgData = "' + _svgData + '";\n\n';
+                _consoleCode += 'var layerData = "' + _layerData + '";\n\n';
+                _consoleCode += 'var request = new XMLHttpRequest;request.open("POST","/emblems/save",!0),request.onreadystatechange=function(){if(request.readyState==XMLHttpRequest.DONE){var a=JSON.parse(request.responseText);200==a.Status?window.location.href="https://socialclub.rockstargames.com/emblems/edit/"+a.EmblemId:a.Message?alert(a.Message):alert(a.Error.Message)}},request.setRequestHeader("Content-Type","application/json"),request.setRequestHeader("__RequestVerificationToken",document.getElementsByName("__RequestVerificationToken")[0].value),request.setRequestHeader("X-Requested-With","XMLHttpRequest"),request.send(JSON.stringify({"crewId":"0","emblemId":"","parentId":"","svgData":svgData,"layerData": layerData,"hash":document.getElementById("editorField-hash").value}));';
+                
+                return _consoleCode;
+            }
+ 
+        }       
+    </script>
+    <!-- EMBLEM HELPER CLASS END -->
+</head>
+<body>
+    <div class="container">
+        <div class="row">
+            <!-- LEFT COLUMN START -->
+            <div class="column left">
+                <div class="column-content">
+                    <button id="eh-btnImportImage" type="button" class="clr-primary btn-wide">Import SVG</button>
+                    <input type="file" id="eh-fileSelector" style="display: none;" accept=".svg">
+                    <div>
+                        <fieldset style="border-color: #242424;">
+                            <div class="div-image-container">
+                                <img id="eh-imgSource"/>
+                            </div>
+                            <div class="div-status">
+                                <span class="status-text" id="eh-lblStatus">NO SVG</span>
+                            </div>
+                        </fieldset>
+                    </div>
+                    <div>
+                        <fieldset>
+                            <legend>
+                                <span class="info">🛈<span class="tooltip">
+                                    Determines the amount of decimal places used for elements of the emblem SVG.<br>
+                                    <br>
+                                    Low &nbsp; = &nbsp; 3 &nbsp; (recommended)<br>
+                                    Medium &nbsp; = &nbsp; 4<br>
+                                    High &nbsp; = &nbsp; 5<br>
+                                    <br>
+                                    Only increase this setting if there is visible tearing in the emblem (lines present between the colours).
+                                </span></span>
+                                Decimal Precision
+                            </legend>
+                            <div>
+                                <label for="eh-opt3" class="l-radio">
+                                    <input type="radio" id="eh-opt3" value="3" name="eh-optAccuracy" tabindex="3" checked="checked">
+                                    <span>Low</span>
+                                </label>
+                                <label for="eh-opt4" class="l-radio">
+                                    <input type="radio" id="eh-opt4" value="4" name="eh-optAccuracy" tabindex="4">
+                                    <span>Medium</span>
+                                </label>
+                                <label for="eh-opt5" class="l-radio">
+                                    <input type="radio" id="eh-opt5" value="5" name="eh-optAccuracy" tabindex="5">
+                                    <span>High</span>
+                                </label>
+                            </div>
+                        </fieldset>
+                        <button disabled id="eh-btnProcessImage" type="button" class="clr-inactive btn-wide">Create Emblem</button>
+                    </div>
+                    
+                </div>
+            </div>
+            <!-- LEFT COLUMN END -->
+            <!-- MIDDLE COLUMN START -->
+            <div class="column middle">
+                <div class="column-content">
+                    <div class="div-svg-container">
+                        <div class="div-svg-image">
+                            <svg width="512" height="512">
+                                <defs>
+                                    <pattern id="checkerDark" x="0" y="0" width="16" height="16" patternUnits="userSpaceOnUse">
+                                        <rect x="0" y="0" width="8" height="8" fill="#46494E"></rect>
+                                        <rect x="0" y="8" width="8" height="8" fill="#777672"></rect>
+                                        <rect x="8" y="0" width="8" height="8" fill="#777672"></rect>
+                                        <rect x="8" y="8" width="8" height="8" fill="#46494E"></rect>
+                                    </pattern>
+                                </defs>
+                                <rect x="0" y="0" width="100%" height="100%" fill="url(#checkerDark)"></rect>
+                            </svg>
+                        </div>
+                        <div class="div-svg-image" id="eh-svgPreview"></div>
+                    </div>
+                    <div id="eh-divInfo" class="div-info clr-inactive">⠀</div>
+                    <div class="div-support-link">
+                        <a href="https://www.youtube.com/watch?v=bGI88KDaKmY" target="_blank">Help & Feedback</a>
+                    </div>
+                </div>
+            </div>
+            <!-- MIDDLE COLUMN END -->
+            <!-- RIGHT COLUMN START -->
+            <div class="column right">
+                <div class="column-content">
+                    <button disabled id="eh-btnCreateCode" type="button" class="clr-inactive btn-wide">Generate Code</button>
+                    <textarea id="eh-txtConsoleCode" class="textarea"></textarea>
+                    <div class="div-info div-mobile">
+                        <strong>Note for mobile users:</strong><br>
+                        Some mobile devices will not be able to copy all of the code. You may need to copy it in sections.
+                    </div>
+                    <button disabled id="eh-btnCopyCode" type="button" class="clr-inactive btn-wide">Copy Code</button>
+                </div>
+            </div>
+            <!-- RIGHT COLUMN END -->
+        </div>
+    </div>
+    <script>
+        //  Adapated from:  https://web.dev/read-files/
+        const STATUS = document.getElementById('eh-lblStatus');
+        const OUTPUT = document.getElementById('eh-imgSource');
+        let sourceSVG = '';
+        if (window.FileList && window.File && window.FileReader)
+        {
+            document.getElementById('eh-fileSelector').addEventListener('change', event => {
+                OUTPUT.src = '';
+                STATUS.textContent = 'NO SVG';
+                //  Disable the Create Emblem button.
+                setClass('eh-btnProcessImage', 'btn-wide clr-inactive');
+                disableElement('eh-btnProcessImage');
+                const FILE = event.target.files[0];
+ 
+                // Check if file is SVG by name or MIME type
+                var _path = document.getElementById('eh-fileSelector').value;
+                var _isSVG = _path.toLowerCase().endsWith('.svg');
+                var _isSVGMime = FILE.type && (FILE.type.match('image/svg+xml') || FILE.type.match('text/xml') || FILE.type.match('application/xml'));
+                
+                if (!_isSVG && !_isSVGMime)
+                {
+                    STATUS.textContent = 'Error: Please select an SVG file!';
+                    return;
+                }
+ 
+                const READER = new FileReader();
+                READER.addEventListener('load', event => {
+                    sourceSVG = event.target.result;
+                    OUTPUT.src = 'data:image/svg+xml;base64,' + btoa(sourceSVG);
+                    var _fName = _path.split("\\").pop();
+                    STATUS.textContent = fileTrunc(_fName);
+                    //  Enable the Create Emblem button.
+                    setClass('eh-btnProcessImage', 'btn-wide clr-primary');
+                    enableElement('eh-btnProcessImage');
+                });
+ 
+                READER.readAsText(FILE);
+            }); 
+        }
+ 
+        //  Import SVG button clicked : trigger the file select dialog.
+        document.getElementById('eh-btnImportImage').onclick = function() {
+            document.getElementById('eh-fileSelector').click();
+        };
+ 
+        //  Create Emblem button clicked : check the selected options and process the SVG.
+        document.getElementById('eh-btnProcessImage').onclick = function()
+        {
+            //  Disable the Create Code button.
+            setClass('eh-btnCreateCode', 'btn-wide clr-inactive');
+            disableElement('eh-btnCreateCode');
+ 
+            //  Disable the Copy Code button.
+            setClass('eh-btnCopyCode', 'btn-wide clr-inactive');
+            disableElement('eh-btnCopyCode');
+ 
+            //  Clear the console code text area.
+            document.getElementById('eh-txtConsoleCode').value = '';
+ 
+            //  Create a new Emblem Helper object.
+            EH = new emblemHelper();
+ 
+            //  Get the selected decimal precision.
+            var _precision = 3, _optionAccuracy = document.getElementsByName('eh-optAccuracy');
+            for (i = 0; i < _optionAccuracy.length; i++)
+                if(_optionAccuracy[i].checked)
+                    _precision = Number(_optionAccuracy[i].value);
+            
+            //  Set the decimal precision in the Emblem Helper object.
+            EH.setAccuracy(_precision);
+ 
+            //  Create the emblem from the SVG.
+            EH.createEmblemFromGeometrizeSVG(sourceSVG);
+ 
+            //  Display the emblem SVG preview.
+            document.getElementById('eh-svgPreview').innerHTML = '';
+            document.getElementById('eh-svgPreview').appendChild(EH.svg.getSVG());
+ 
+            //  Check the size of the resulting emblem.
+            if (EH.encodedLength < EH.maxEncodedLength)
+            {
+                //  The eblem is small enough to upload.
+                setClass('eh-divInfo', 'div-info clr-success');
+                document.getElementById('eh-divInfo').innerHTML = 'OK:&nbsp;&nbsp;&nbsp; ' + numberWithCommas(EH.encodedLength) + '&nbsp;&nbsp;/&nbsp;&nbsp;' + numberWithCommas(EH.maxEncodedLength);
+                //  Enable the Create Code button
+                setClass('eh-btnCreateCode', 'btn-wide clr-primary');
+                enableElement('eh-btnCreateCode');
+            }
+            else
+            {
+                //  The emblem is too large to upload.
+                setClass('eh-divInfo', 'div-info clr-danger');
+                document.getElementById('eh-divInfo').innerHTML = 'Too Expensive:&nbsp;&nbsp;&nbsp; ' + numberWithCommas(EH.encodedLength) + '&nbsp;&nbsp;/&nbsp;&nbsp;' + numberWithCommas(EH.maxEncodedLength);
+            }
+            
+        };
+ 
+        //  Create Code button clicked : display the console code.
+        document.getElementById('eh-btnCreateCode').onclick = function()
+        {
+            document.getElementById('eh-txtConsoleCode').value = EH.getConsoleCode();
+            //  Enable the Copy Code button.
+            setClass('eh-btnCopyCode', 'btn-wide clr-primary');
+            enableElement('eh-btnCopyCode');
+        };
+ 
+        //  Copy Code button clicked : copy the code to the clipboard.
+        document.getElementById('eh-btnCopyCode').onclick = function()
+        {
+            copyToClipboard('eh-txtConsoleCode');
+            //  Notify the user that the code was copied.
+            document.getElementById('eh-btnCopyCode').innerText = 'Copied';
+            setClass('eh-btnCopyCode', 'btn-wide clr-success');
+            setTimeout(function () { document.getElementById('eh-btnCopyCode').innerText = 'Copy Code', setClass('eh-btnCopyCode', 'btn-wide clr-primary') }, 2000);
+        };
+    </script>
+</body>
+</html>

@@ -433,10 +433,10 @@
 
                 for (let i = 0; i < ellipses.length; i++) {
                     const el = ellipses[i];
-                    let cx = (parseFloat(el.getAttribute('cx')) || 0) * scale_factor_x;
-                    let cy = (parseFloat(el.getAttribute('cy')) || 0) * scale_factor_y;
-                    let rx = (parseFloat(el.getAttribute('rx')) || 0) * scale_factor_x;
-                    let ry = (parseFloat(el.getAttribute('ry')) || 0) * scale_factor_y;
+                    let cx = (parseFloat(el.getAttribute('cx')) || 0);
+                    let cy = (parseFloat(el.getAttribute('cy')) || 0);
+                    let rx = (parseFloat(el.getAttribute('rx')) || 0);
+                    let ry = (parseFloat(el.getAttribute('ry')) || 0);
                     let fill = el.getAttribute('fill') || '#000000';
                     if (fill.startsWith('rgb(')) {
                         let [r, g, b] = fill.match(/\d+/g).map(Number);
@@ -444,13 +444,40 @@
                     }
                     let alpha = (parseFloat(el.getAttribute('opacity')) || 1) * (parseFloat(el.getAttribute('fill-opacity')) || 1);
                     let rotation = 0;
-                    let transform = el.getAttribute('transform');
-                    if (transform) {
-                        const match = transform.match(/rotate\((-?[\d.]+)\s+([\d.]+)\s+([\d.]+)\)/);
-                        if (match) {
-                            rotation = parseFloat(match[1]);
+                    let groupScaleX = 1;
+                    let groupScaleY = 1;
+                    let groupTranslateX = 0;
+                    let groupTranslateY = 0;
+
+                    // Check if ellipse is inside a group with transform
+                    const parent = el.parentElement;
+                    if (parent && parent.tagName === 'g') {
+                        const groupTransform = parent.getAttribute('transform');
+                        if (groupTransform) {
+                            // Parse translate(tx ty) rotate(angle) scale(sx sy)
+                            const translateMatch = groupTransform.match(/translate\(([\d.]+)\s+([\d.]+)\)/);
+                            const rotateMatch = groupTransform.match(/rotate\(([\d.]+)\)/);
+                            const scaleMatch = groupTransform.match(/scale\(([\d.]+)\s+([\d.]+)\)/);
+                            
+                            if (translateMatch) {
+                                groupTranslateX = parseFloat(translateMatch[1]);
+                                groupTranslateY = parseFloat(translateMatch[2]);
+                            }
+                            if (rotateMatch) {
+                                rotation = parseFloat(rotateMatch[1]);
+                            }
+                            if (scaleMatch) {
+                                groupScaleX = parseFloat(scaleMatch[1]);
+                                groupScaleY = parseFloat(scaleMatch[2]);
+                            }
                         }
                     }
+
+                    // Apply group transforms to ellipse coordinates
+                    cx = (cx + groupTranslateX) * scale_factor_x;
+                    cy = (cy + groupTranslateY) * scale_factor_y;
+                    rx = rx * groupScaleX * scale_factor_x;
+                    ry = ry * groupScaleY * scale_factor_y;
 
                     let sr_x = rx / this.slugCenterX;
                     let sr_y = ry / this.slugCenterY;
@@ -479,8 +506,10 @@
                         let b = sr_x * sin;
                         let c = -sr_y * sin;
                         let d = sr_y * cos;
-                        let e = cx - a * this.slugCenterX - c * this.slugCenterY;
-                        let f = cy - b * this.slugCenterX - d * this.slugCenterY;
+                        
+                        // Apply rotation around the slug center point (150, 150)
+                        let e = cx - (a * this.slugCenterX + c * this.slugCenterY);
+                        let f = cy - (b * this.slugCenterX + d * this.slugCenterY);
 
                         a = floatRound(a, this.decimalPrecision);
                         b = floatRound(b, this.decimalPrecision);

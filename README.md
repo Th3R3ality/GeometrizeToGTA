@@ -9,4 +9,4 @@ https://www.samcodes.co.uk/project/geometrize-haxe-web/
 
 <br>
 
-> originally made by Flashback-GTA and then modified by tabbygarf (https://tabbygarf.club/) which is where i got the source from all, credits to them
+> originally made by Flashback-GTA (https://www.youtube.com/watch?v=bGI88KDaKmY) and then modified by tabbygarf (https://tabbygarf.club/) which is where i got the source from, credits to them

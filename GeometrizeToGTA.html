@@ -629,8 +629,8 @@ button{
                     
                     let sr_x = bg_rx / this.slugCenterX;
                     let sr_y = bg_ry / this.slugCenterY;
-                    let pos_x = bg_cx - (this.slugCenterX * sr_x);
-                    let pos_y = bg_cy - (this.slugCenterY * sr_y);
+                    let pos_x = bg_cx - (this.slugCenterX);
+                    let pos_y = bg_cy - (this.slugCenterY);
                     
                     pos_x = floatRound(pos_x, this.decimalPrecision);
                     pos_y = floatRound(pos_y, this.decimalPrecision);
@@ -644,7 +644,10 @@ button{
                     
                     // For SVG
                     let path_opacity = bg_alpha * 255;
-                    this.svg.addSolidPath(pos_x, pos_y, sr_x, sr_y, bg_fill, path_opacity);
+                    let tx = pos_x + this.slugCenterX - this.slugCenterX * sr_x;
+                    let ty = pos_y + this.slugCenterY - this.slugCenterY * sr_y;
+
+                    this.svg.addSolidPath(tx, ty, sr_x, sr_y, bg_fill, path_opacity);
                 }
 
                 const ellipses = doc.querySelectorAll('ellipse');
@@ -716,19 +719,25 @@ button{
                     // For SVG
                     let path_opacity = alpha * 255;
                     if (rotation === 0) {
-                        this.svg.addSolidPath(pos_x, pos_y, sr_x, sr_y, fill, path_opacity);
+                        let tx = pos_x + this.slugCenterX - this.slugCenterX * sr_x;
+                        let ty = pos_y + this.slugCenterY - this.slugCenterY * sr_y;
+
+                        this.svg.addSolidPath(tx, ty, sr_x, sr_y, fill, path_opacity);
                     } else {
                         let rad = rotation * Math.PI / 180;
                         let cos = Math.cos(rad);
                         let sin = Math.sin(rad);
+
+                        // scaled rotation
                         let a = sr_x * cos;
                         let b = sr_x * sin;
                         let c = -sr_y * sin;
                         let d = sr_y * cos;
-                        
-                        // Apply rotation around the slug center point (150, 150)
-                        let e = cx - (a * this.slugCenterX + c * this.slugCenterY);
-                        let f = cy - (b * this.slugCenterX + d * this.slugCenterY);
+
+                        // translate so rotation happens around slug center,
+                        // starting from layer top-left position
+                        let e = pos_x + this.slugCenterX - (a * this.slugCenterX + c * this.slugCenterY);
+                        let f = pos_y + this.slugCenterY - (b * this.slugCenterX + d * this.slugCenterY);
 
                         a = floatRound(a, this.decimalPrecision);
                         b = floatRound(b, this.decimalPrecision);

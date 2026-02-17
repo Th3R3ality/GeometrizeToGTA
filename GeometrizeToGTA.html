@@ -485,10 +485,10 @@ button{
                 return this.svgElement;
             }
         }
-    </script>
-    <!-- SVG OBJECT CLASS END -->
-    <!-- EMBLEM HELPER CLASS START -->
-    <script>        
+
+    //<!-- SVG OBJECT CLASS END -->
+    //<!-- EMBLEM HELPER CLASS START -->
+     
         //  The main Emblem Helper object class.
         class emblemHelper
         {
@@ -592,6 +592,18 @@ button{
                 return _layer;
             }
             
+            centered_slug_at_pos(x, y, slug_width, slug_height) {
+                return [x - slug_width / 2, y - slug_height / 2];
+            }
+            centered_svg_at_pos(x, y, svg_width, svg_height) {
+                return [x - svg_width / 2, y - svg_height / 2];
+            }
+
+
+            add_ellipse(center_x, center_y, radius_x, radius_y, color, opacity) {
+                
+            }
+
             //  Process the Geometrize SVG and create the emblem.
             createEmblemFromGeometrizeSVG(svgString)
             {
@@ -600,16 +612,14 @@ button{
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(svgString, "image/svg+xml");
                 const svgEl = doc.documentElement;
-                let viewBox = svgEl.getAttribute('viewBox');
-                let vb;
-                if (viewBox) {
-                    vb = viewBox.split(/\s+/).map(Number);
-                } else {
-                    vb = [0, 0, parseFloat(svgEl.getAttribute('width') || 512), parseFloat(svgEl.getAttribute('height') || 512)];
-                }
 
-                const scale_factor_x = this.emblemWidth / vb[2];
-                const scale_factor_y = this.emblemHeight / vb[3];
+                const w = parseFloat(svgEl.getAttribute('width')  || 512);
+                const h = parseFloat(svgEl.getAttribute('height') || 512);
+
+                let _broken = w > h ? h : w;
+
+                const scale_factor_x = this.emblemWidth / _broken;
+                const scale_factor_y = this.emblemHeight / _broken;
 
                 // Handle background rect if present - convert to giant covering ellipse
                 const rect = doc.querySelector('rect');
@@ -621,33 +631,9 @@ button{
                     }
                     let bg_alpha = (parseFloat(rect.getAttribute('opacity')) || 1) * (parseFloat(rect.getAttribute('fill-opacity')) || 1);
                     
-                    // Create a giant ellipse that covers the entire emblem as background
-                    let bg_cx = this.emblemWidth / 2;
-                    let bg_cy = this.emblemHeight / 2;
-                    let bg_rx = (this.emblemWidth / 2) * 3;
-                    let bg_ry = (this.emblemHeight / 2) * 3;
-                    
-                    let sr_x = bg_rx / this.slugCenterX;
-                    let sr_y = bg_ry / this.slugCenterY;
-                    let pos_x = bg_cx - (this.slugCenterX);
-                    let pos_y = bg_cy - (this.slugCenterY);
-                    
-                    pos_x = floatRound(pos_x, this.decimalPrecision);
-                    pos_y = floatRound(pos_y, this.decimalPrecision);
-                    
-                    let scale_x = floatRound(sr_x * 100, this.decimalPrecision);
-                    let scale_y = floatRound(sr_y * 100, this.decimalPrecision);
-                    
-                    let layer_opacity = Math.round(bg_alpha * 100);
-                    
-                    this.layers.push(this.createNewLayer(pos_x, pos_y, scale_x, scale_y, 0, layer_opacity, bg_fill, 1));
-                    
-                    // For SVG
-                    let path_opacity = bg_alpha * 255;
-                    let tx = pos_x + this.slugCenterX - this.slugCenterX * sr_x;
-                    let ty = pos_y + this.slugCenterY - this.slugCenterY * sr_y;
-
-                    this.svg.addSolidPath(tx, ty, sr_x, sr_y, bg_fill, path_opacity);
+                    const [sx, sy] = this.centered_slug_at_pos(256, 256, this.slugWidth, this.slugHeight);
+                    this.layers.push(this.createNewLayer(sx, sy, 340, 340, 0, Math.round(bg_alpha * 100), bg_fill, 1));
+                    this.svg.addSolidPath(-256, -256, 3.4, 3.4, bg_fill, bg_alpha * 255);
                 }
 
                 const ellipses = doc.querySelectorAll('ellipse');
